@@ -73,7 +73,7 @@ else()
   message("-- Exceptions disabled")
   set(EMBB_NO_EXCEPTIONS) # A preprocessor define
   if (CMAKE_COMPILER_IS_GNUCXX)
-    LIST(APPEND ${CMAKE_CXX_FLAGS} "-fno-exceptions")
+    LIST(APPEND ${CMAKE_CXX_FLAGS} "-fno-exceptions -pthread")
   elseif (MSVC)
     LIST(FIND ${CMAKE_CXX_FLAGS} "/EHsc" EXCEPTION_FLAG)
     if (EXCEPTION_FLAG)
