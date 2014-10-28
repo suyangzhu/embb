@@ -1,10 +1,23 @@
-#include "smithwaterman.h"
-#include <partest/partest.h>
-#include <embb_mtapi_test_config.h>
-#include <embb_mtapi_test_init_finalize.h> 
-#define MTAPI_DOMAIN_ID 0
-#define MTAPI_NODE_ID 0
-#define WAVEFRONTACTION_ID 0
+
+// ////////////////////////////////////////////////////////////////////////////
+// 
+// MTAPI example:
+// porting a Smith-Waterman wafe-front algorithm from OpenMP to MTAPI
+//
+// remarks: 
+//  - no error handling included (mtapi_status_t not evaluated)
+//  - attibutes to be set for action, group, and task not specified
+//
+// ////////////////////////////////////////////////////////////////////////////
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <omp.h>
+
+#include <sys/time.h>
+#include <time.h>
+
 // ////////////////////////////////////////////////////////////////////////////
 // MTAPI: define entry function for tasks
 // (parallel acivities have to be implemented as functions)
@@ -21,12 +34,10 @@ typedef struct  {
     int **h;                // shared
     int **e;                // shared
     int **f;                // shared
-    char **sequences; // shared - const?
+    unsigned int sequences; // shared - const?
     unsigned int open;      // shared - const?
     unsigned int extension; // shared - const?
 } element_args;
-
-int similarity(char x, char y); 
 
 // task entry function (signuature according to MTAPI specification)
 void calculate_element(void* parameters, int param_count, mtapi_status_t status) {
@@ -37,17 +48,17 @@ void calculate_element(void* parameters, int param_count, mtapi_status_t status)
     element_args* args = (element_args*) parameters;
     
     // optionally extract agruments (alternatively access dirctly further down)
-    unsigned int np = args->np;
-    unsigned int mp = args->mp;
-    unsigned int i = args->i;
-    unsigned int k = args->k;
-    unsigned int l = args->l;
-    int **h = args->h;
-    int **e = args->e;
-    int **f = args->f;
-    char **sequences = args->sequences;
-    unsigned int open = args->open;
-    unsigned int extension = args->extension;
+    unsigned int np = args.np;
+    unsigned int mp = args.mp;
+    unsigned int i = args.i;
+    unsigned int k = args.k;
+    unsigned int l = args.l;
+    int **h = args.h;
+    int **e = args.e;
+    int **f = args.f;
+    unsigned int sequences = args.sequences;
+    unsigned int open = args.open;
+    unsigned int extension = args.extension;
     
     //printf("(%d,%d)", np-i, mp+i);
     // Calculate e
@@ -91,26 +102,25 @@ int main(int argc, char *argv[]) {
     
     mtapi_node_attributes_t mtapi_node_attributes;
    
-    mtapi_nodeattr_init( 
+    mtapi_node_init_attributes( 
         &mtapi_node_attributes, 
         &mtapi_status 
     );
-   /* 
-    mtapi_nodeattr_set(  
+    
+    mtapi_node_set_attribute(  
         &mtapi_node_attributes, 
         MTAPI_NODE_TYPE,       // example attribute
         MTAPI_NODE_TYPE_SMP,   // example attibute value
         MTAPI_NODE_TYPE_SIZE,  // example attribute size
         &mtapi_status 
     );
-*/
+
     // initialize MTAPI
-    mtapi_info_t mtapi_info;
     mtapi_initialize( 
         MTAPI_DOMAIN_ID,  // to be defined in a central header file
         MTAPI_NODE_ID,    // to be defined in a central header file
         &mtapi_node_attributes, 
-     //   &mtapi_parameters, 
+        &mtapi_parameters, 
         &mtapi_info, 
         &mtapi_status 
     );
@@ -122,8 +132,7 @@ int main(int argc, char *argv[]) {
     // ////////////////////////////////////////////////////////////////////////////
 
     mtapi_action_attributes_t mtapi_action_attributes;
-    /*
-    mtapi_action_init_attribu(
+    void mtapi_action_init_attributes(
         &mtapi_action_attributes,
         &mtapi_status
     );
@@ -131,12 +140,10 @@ int main(int argc, char *argv[]) {
         &mtapi_action_attributes, 
         // ...
     );
-*/
+
     mtapi_action_hndl_t action =  mtapi_action_create(
         WAVEFRONTACTION_ID,    // to be defined in a central header file
         calculate_element,
-	NULL,
-	0,
         mtapi_action_attributes,
         &mtapi_status
     );
@@ -147,17 +154,17 @@ int main(int argc, char *argv[]) {
 
     mtapi_group_attributes_t mtapi_group_attributes;
     
-    mtapi_groupattr_init(
+    mtapi_group_init_attributes(
         &mtapi_group_attributes,
         &mtapi_status
     );
-/*    
-    mtapi_groupattr_set( 
+    
+    mtapi_group_set_attribute( 
         &mtapi_group_attributes, 
         // ...
     );
-*/
-    mtapi_group_hndl_t group mtapi_group_create(
+
+    mtapi_group_hndl group mtapi_group_create(
         mtapi_group_attributes,
         &mtapi_status
     );
@@ -263,8 +270,8 @@ int main(int argc, char *argv[]) {
 
                             // copy arguments
                             element_args args;
-                            args->np = np; args->mp = mp; args->i = i; args->k = k; args->l = l;
-                            args->h = h; args->e = e; args->f = f; args->sequences = sequences; args->open = open; args->extensions = extensions;
+                            args.np = np; args.mp = mp; args.i = i; args.k = k; args.l = l;
+                            args.h = h; args.e = e; args.f = f; args.sequences = sequences; args.open = open; args.extensions = extensions;
                             
                             // configure task attributes
                             mtapi_task_attributes_t mtapi_task_attributes;
